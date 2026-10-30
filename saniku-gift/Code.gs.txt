@@ -1,0 +1,248 @@
+/**
+ * 広島三育応援ギフト — 記録用 Apps Script
+ *
+ * このスクリプトは Google スプレッドシートに紐づけて使います。
+ *   - 「品物」シート：募集する品物の一覧（先生方が行を追加・編集）
+ *   - 「贈り物記録」シート：誰が・何を・いつ贈ったかの記録
+ * ページ（index.html）もこのスクリプトから配信します。
+ */
+
+const CONFIG = {
+  PAGE_TITLE: '広島三育応援ギフト',
+  SHEET_ITEMS: '品物',
+  SHEET_GIFTS: '贈り物記録',
+  // 新しい申込があったときの通知先。'self' = このスクリプトを公開したアカウントのGmail（空欄なら通知しない）
+  ADMIN_EMAIL: 'self',
+  // 申込者に受付番号を記したメールを送るか
+  SEND_CONFIRMATION: true,
+  CODE_PREFIX: 'SG-',
+  // 公開ページのURL（確認メールに載せる）
+  PAGE_URL: 'https://lamaeo42-png.github.io/claude/saniku-gift/#report',
+};
+
+const SPREADSHEET_ID = '1YN1PkGVEjsY5VXO_rlV0gA7WV_OSJrHQRzuYthXjwh4';
+function ss_() { return SpreadsheetApp.openById(SPREADSHEET_ID); }
+
+const ITEM_HEADERS = ['ID', '品物名', '分類', '使い道', '仕様', '参考価格', '価格確認日', '画像URL', 'ほしい物リストURL', '状態'];
+const GIFT_HEADERS = ['受付番号', '申込日時', '品物ID', '品物名', 'お名前', '区分', '期・学年など', 'メールアドレス', 'メッセージ', '掲載方法', '状態', '購入報告日時', '到着日', 'お礼送付日', '担当メモ'];
+const GIFT_STATUSES = ['申込', '購入報告', '到着確認', 'お礼送付', '取消'];
+const VERIFIED = ['到着確認', 'お礼送付'];
+
+/* ---------- 初回だけ実行：シートを作る ---------- */
+function setup() {
+  const ss = ss_();
+
+  let items = ss.getSheetByName(CONFIG.SHEET_ITEMS);
+  if (!items) {
+    items = ss.insertSheet(CONFIG.SHEET_ITEMS);
+    items.appendRow(ITEM_HEADERS);
+    items.appendRow([
+      'trimmer', 'マキタ 充電式生垣バリカン MUH367DZ', '学校生活を支える品',
+      '生徒たちが過ごす校内の植栽を、きれいに整えるために。',
+      '18V・刃物長360mm（本体のみ）', 14716, new Date(),
+      'https://www.komeri.com/images/goods/021/559/87/2155987.jpg',
+      '（ここにAmazonほしい物リストのURLを貼る）', '募集中',
+    ]);
+    items.setFrozenRows(1);
+    items.getRange('J2:J200').setDataValidation(
+      SpreadsheetApp.newDataValidation().requireValueInList(['募集中', '受付終了'], true).build());
+  }
+
+  let gifts = ss.getSheetByName(CONFIG.SHEET_GIFTS);
+  if (!gifts) {
+    gifts = ss.insertSheet(CONFIG.SHEET_GIFTS);
+    gifts.appendRow(GIFT_HEADERS);
+    gifts.setFrozenRows(1);
+    gifts.getRange('K2:K2000').setDataValidation(
+      SpreadsheetApp.newDataValidation().requireValueInList(GIFT_STATUSES, true).build());
+    gifts.getRange('M2:N2000').setNumberFormat('yyyy/mm/dd');
+  }
+}
+
+/* ---------- 外部ページ（GitHub Pages）向けの窓口 ---------- */
+function json_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+function doPost(e) {
+  try {
+    const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    let result;
+    if (req.action === 'data') result = getPageData();
+    else if (req.action === 'submit') result = submitIntent(req.form || {});
+    else if (req.action === 'report') result = reportPurchase(req.code, req.email);
+    else throw new Error('不明な操作です。');
+    return json_({ ok: true, result: result });
+  } catch (err) {
+    return json_({ ok: false, error: String((err && err.message) || err) });
+  }
+}
+
+/* ---------- ページの配信 ---------- */
+function doGet(e) {
+  if (e && e.parameter && e.parameter.api === 'data') {
+    try { return json_({ ok: true, result: getPageData() }); }
+    catch (err) { return json_({ ok: false, error: String(err.message || err) }); }
+  }
+  return HtmlService.createHtmlOutputFromFile('index')
+    .setTitle(CONFIG.PAGE_TITLE)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/* ---------- ページから呼ばれる関数 ---------- */
+
+/** 募集中の品物と、到着確認済みの応援者一覧を返す */
+function getPageData() {
+  const items = readSheet_(CONFIG.SHEET_ITEMS)
+    .filter(r => String(r['状態']).trim() === '募集中' && r['ID'])
+    .map(r => ({
+      id: String(r['ID']),
+      name: String(r['品物名']),
+      category: String(r['分類'] || ''),
+      use: String(r['使い道'] || ''),
+      spec: String(r['仕様'] || ''),
+      price: Number(r['参考価格']) || null,
+      priceDate: r['価格確認日'] instanceof Date
+        ? Utilities.formatDate(r['価格確認日'], 'Asia/Tokyo', 'M/d') : String(r['価格確認日'] || ''),
+      image: String(r['画像URL'] || ''),
+    }));
+
+  const gifts = readSheet_(CONFIG.SHEET_GIFTS).filter(r => VERIFIED.indexOf(String(r['状態'])) >= 0);
+  const counts = {};
+  gifts.forEach(g => { counts[g['品物ID']] = (counts[g['品物ID']] || 0) + 1; });
+  items.forEach(i => { i.count = counts[i.id] || 0; });
+
+  const supporters = gifts
+    .filter(g => g['掲載方法'] !== '掲載しない')
+    .sort((a, b) => toTime_(b['到着日'] || b['申込日時']) - toTime_(a['到着日'] || a['申込日時']))
+    .slice(0, 40)
+    .map(g => ({
+      name: g['掲載方法'] === 'お名前を掲載' ? String(g['お名前']) + ' さん' : '',
+      group: groupLabel_(g['区分'], g['期・学年など']),
+      item: String(g['品物名']),
+      message: g['掲載方法'] === 'お名前を掲載' ? String(g['メッセージ'] || '').slice(0, 80) : '',
+    }));
+
+  return { items: items, supporters: supporters, total: gifts.length };
+}
+
+/** 申込を記録して受付番号を返す */
+function submitIntent(f) {
+  f = f || {};
+  const name = clean_(f.name, 40);
+  const email = clean_(f.email, 120).toLowerCase();
+  const category = clean_(f.category, 20);
+  if (!name || !email || !category) throw new Error('お名前・区分・メールアドレスを入力してください。');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('メールアドレスの形式を確認してください。');
+  if (!f.consent) throw new Error('個人情報の取り扱いへの同意が必要です。');
+
+  const item = readSheet_(CONFIG.SHEET_ITEMS).filter(r => String(r['ID']) === String(f.itemId))[0];
+  if (!item || String(item['状態']).trim() !== '募集中') throw new Error('この品物の募集は終了しています。');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  let code;
+  try {
+    const sheet = ss_().getSheetByName(CONFIG.SHEET_GIFTS);
+    const used = {};
+    readSheet_(CONFIG.SHEET_GIFTS).forEach(r => { used[r['受付番号']] = true; });
+    do { code = CONFIG.CODE_PREFIX + randomCode_(4); } while (used[code]);
+
+    const row = {
+      '受付番号': code, '申込日時': new Date(), '品物ID': String(item['ID']), '品物名': String(item['品物名']),
+      'お名前': name, '区分': category, '期・学年など': clean_(f.detail, 30), 'メールアドレス': email,
+      'メッセージ': clean_(f.message, 300), '掲載方法': clean_(f.publish, 20) || '掲載しない',
+      '状態': '申込', '購入報告日時': '', '到着日': '', 'お礼送付日': '', '担当メモ': '',
+    };
+    sheet.appendRow(GIFT_HEADERS.map(h => safeCell_(row[h])));
+  } finally {
+    lock.releaseLock();
+  }
+
+  const wishlistUrl = String(item['ほしい物リストURL'] || '');
+  const giftMessage = buildGiftMessage_(code, name, groupLabel_(category, f.detail));
+
+  if (CONFIG.SEND_CONFIRMATION) {
+    try {
+      MailApp.sendEmail({
+        to: email,
+        subject: '【広島三育応援ギフト】受付番号 ' + code,
+        body: [
+          name + ' 様', '',
+          '広島三育応援ギフトへのお申し込みありがとうございます。', '',
+          '受付番号：' + code,
+          '品物：' + item['品物名'], '',
+          'Amazonでご注文の際、「ギフトの設定」のメッセージ欄に次の文をそのまま貼り付けてください。',
+          '学院に届いた荷物と、お名前を結びつけるために使います。', '',
+          giftMessage, '',
+          'Amazonほしい物リスト：' + wishlistUrl,
+          'ご注文後の報告ページ：' + CONFIG.PAGE_URL, '',
+          '品物の到着後、生徒たちからお礼の動画をお届けします。',
+          '広島三育学院 三育リンクアップ × 研成会',
+        ].join('\n'),
+      });
+    } catch (e) { /* メール送信に失敗しても申込は記録済み */ }
+  }
+  if (CONFIG.ADMIN_EMAIL) {
+    try {
+      const adminTo = CONFIG.ADMIN_EMAIL === 'self' ? Session.getEffectiveUser().getEmail() : CONFIG.ADMIN_EMAIL;
+      MailApp.sendEmail(adminTo, '【応援ギフト】新しい申込 ' + code,
+        code + '\n' + name + '（' + category + ' ' + clean_(f.detail, 30) + '）\n' + item['品物名']);
+    } catch (e) {}
+  }
+
+  return { code: code, wishlistUrl: wishlistUrl, giftMessage: giftMessage, itemName: String(item['品物名']) };
+}
+
+/** 「Amazonで注文しました」の報告 */
+function reportPurchase(code, email) {
+  code = clean_(code, 20).toUpperCase().replace(/\s/g, '');
+  if (code && code.indexOf(CONFIG.CODE_PREFIX) !== 0) code = CONFIG.CODE_PREFIX + code;
+  email = clean_(email, 120).toLowerCase();
+  const sheet = ss_().getSheetByName(CONFIG.SHEET_GIFTS);
+  const values = sheet.getDataRange().getValues();
+  const h = values[0];
+  const cCode = h.indexOf('受付番号'), cMail = h.indexOf('メールアドレス'),
+        cStatus = h.indexOf('状態'), cAt = h.indexOf('購入報告日時'), cItem = h.indexOf('品物名');
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][cCode]) === code && String(values[i][cMail]).toLowerCase() === email) {
+      if (values[i][cStatus] === '申込') {
+        sheet.getRange(i + 1, cStatus + 1).setValue('購入報告');
+        sheet.getRange(i + 1, cAt + 1).setValue(new Date());
+      }
+      return { itemName: String(values[i][cItem]), status: String(sheet.getRange(i + 1, cStatus + 1).getValue()) };
+    }
+  }
+  throw new Error('受付番号とメールアドレスの組み合わせが見つかりませんでした。申込時のメールをご確認ください。');
+}
+
+/* ---------- 内部で使う関数 ---------- */
+function readSheet_(name) {
+  const sheet = ss_().getSheetByName(name);
+  if (!sheet) return [];
+  const values = sheet.getDataRange().getValues();
+  const head = values.shift();
+  return values.map(v => { const o = {}; head.forEach((k, i) => { o[k] = v[i]; }); return o; });
+}
+
+function buildGiftMessage_(code, name, group) {
+  return '広島三育応援ギフト 受付番号' + code + '／' + name + (group ? '（' + group + '）' : '') + 'より';
+}
+
+function groupLabel_(category, detail) {
+  category = String(category || ''); detail = String(detail || '').trim();
+  if (category === '卒業生') return detail ? detail + ' 卒業生' : '卒業生';
+  if (category === '保護者') return '保護者';
+  return category;
+}
+
+function randomCode_(n) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 0/O・1/I など紛らわしい文字を除く
+  let s = '';
+  for (let i = 0; i < n; i++) s += chars.charAt(Math.floor(Math.random() * chars.length));
+  return s;
+}
+
+function clean_(v, max) { return String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max); }
+function safeCell_(v) { return (typeof v === 'string' && /^[=+\-@]/.test(v)) ? "'" + v : v; }
+function toTime_(v) { return v instanceof Date ? v.getTime() : 0; }

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>広島三育応援ギフト</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: 紺の帯（写真）→ 募集中の品 → 受付番号でつながる4ステップ → 届いた贈り物 → 注文報告。受付番号は「荷札」で見せる */
+:root{
+  --bg:#f5f7fb; --surface:#ffffff; --ink:#14244b; --fg:#1d2433; --muted:#5a6479; --line:#dce2ee;
+  --gold:#d6a01e; --gold-soft:#fbf1d6; --band:#14244b; --band-fg:#f3f5fa; --ok:#2f7d55; --err:#b3372f;
+  --display:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0c1324; --surface:#141e36; --ink:#e9edf7; --fg:#e3e8f3; --muted:#9aa5bd; --line:#26324f;
+  --gold:#e8b94a; --gold-soft:#2a2513; --band:#0a1022; --band-fg:#eef1f8; --ok:#5cc08a; --err:#ef7b72; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.8;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+[hidden]{display:none!important}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);line-height:1.35;text-wrap:balance;margin:0}
+.eyebrow{font-size:12px;letter-spacing:.14em;font-weight:700;color:var(--gold)}
+a{color:inherit}
+button,input,select,textarea{font:inherit}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+.demo{background:var(--gold-soft);color:var(--fg);font-size:13px;text-align:center;padding:8px 16px}
+
+/* hero */
+.hero{background:var(--band);color:var(--band-fg)}
+.hero .wrap{padding-block:28px 40px;display:grid;gap:28px}
+.brand{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:13px;flex-wrap:wrap}
+.brand b{font-family:var(--display);font-size:16px;letter-spacing:.04em}
+.brand span{opacity:.75}
+.hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:32px;align-items:center}
+.hero h1{font-size:clamp(28px,4.4vw,44px);font-weight:800;margin-top:8px}
+.hero p{margin:14px 0 0;opacity:.88;max-width:34em}
+.photo{border-radius:14px;overflow:hidden;aspect-ratio:4/3;background:#22345f;max-width:100%}
+.photo img{width:100%;height:100%;object-fit:cover}
+.hero-note{display:flex;gap:10px;align-items:flex-start;margin-top:18px;font-size:14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:12px 14px}
+.hero-note i{font-style:normal;font-family:var(--mono);color:var(--gold);font-weight:600;white-space:nowrap}
+
+section{padding-block:56px 8px}
+.sec-head{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+.sec-head h2{font-size:clamp(24px,3vw,30px);color:var(--ink)}
+.sec-head p{margin:0;color:var(--muted);max-width:30em;font-size:14px}
+
+/* items */
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.item-img{aspect-ratio:16/10;background:#fff;display:grid;place-items:center;border-bottom:1px solid var(--line)}
+.item-img img{max-height:100%;object-fit:contain;padding:14px}
+.item-body{padding:18px 20px 20px;display:grid;gap:8px;flex:1}
+.chips{display:flex;gap:8px;flex-wrap:wrap;font-size:12px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:1px 10px;color:var(--muted)}
+.chip.live{border-color:var(--ok);color:var(--ok)}
+.item h3{font-family:var(--body);font-size:18px;font-weight:700;color:var(--ink)}
+.item .use{margin:0}
+.item .spec{margin:0;color:var(--muted);font-size:14px}
+.price{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:4px}
+.price strong{font-size:24px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.price small{color:var(--muted);font-size:12px}
+.count{font-size:13px;color:var(--muted)}
+.btn{appearance:none;border:0;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer;display:inline-flex;justify-content:center;align-items:center;gap:8px;text-decoration:none}
+.btn-primary{background:var(--gold);color:#1a1404}
+.btn-primary:hover{filter:brightness(1.05)}
+.btn-ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
+.btn[disabled]{opacity:.55;cursor:wait}
+.item .btn{margin-top:8px;width:100%}
+@media (min-width:700px){
+  .items:has(> .item:only-child){grid-template-columns:1fr}
+  .item:only-child{flex-direction:row}
+  .item:only-child .item-img{flex:0 0 42%;aspect-ratio:auto;min-height:280px;border-bottom:0;border-right:1px solid var(--line)}
+  .item:only-child .item-body{padding:28px 32px}
+  .item:only-child .btn{max-width:320px}
+}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:28px;text-align:center;color:var(--muted)}
+
+/* steps */
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;counter-reset:s}
+.steps li{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;counter-increment:s;display:grid;gap:6px;align-content:start}
+.steps li::before{content:"STEP " counter(s);font-family:var(--mono);font-size:12px;color:var(--gold);font-weight:600;letter-spacing:.06em}
+.steps b{color:var(--ink);font-size:16px}
+.steps span{font-size:14px;color:var(--muted)}
+.steps .key{border-color:var(--gold);background:var(--gold-soft)}
+
+/* supporters */
+.supporters{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.sup{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:2px;min-width:0}
+.sup b{color:var(--ink)}
+.sup .g{font-size:13px;color:var(--muted)}
+.sup .i{font-size:13px}
+.sup q{font-size:14px;margin-top:6px;color:var(--fg)}
+.tally{font-family:var(--display);font-size:20px;color:var(--ink)}
+.tally b{font-size:34px;color:var(--gold);font-variant-numeric:tabular-nums}
+
+/* report */
+.report{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;display:grid;grid-template-columns:1fr 1.2fr;gap:24px;align-items:start}
+.report h2{font-size:22px;color:var(--ink)}
+.report p{margin:8px 0 0;color:var(--muted);font-size:14px}
+
+/* form */
+.field{display:grid;gap:6px}
+.field label,.legend{font-weight:700;font-size:14px}
+.req{color:var(--gold);font-size:12px;margin-left:6px}
+.opt{color:var(--muted);font-size:12px;font-weight:400;margin-left:6px}
+input[type=text],input[type=email],select,textarea{width:100%;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:9px;padding:11px 12px}
+textarea{min-height:84px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.radios{display:flex;flex-wrap:wrap;gap:8px}
+.radios label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:14px;cursor:pointer;font-weight:500}
+.radios input{accent-color:var(--gold)}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;padding:12px;border-radius:10px;border:1px solid var(--line)}
+.check.warn{background:var(--gold-soft);border-color:transparent}
+.check input{margin-top:5px;accent-color:var(--gold);width:18px;height:18px;flex:none}
+.error{color:var(--err);font-size:14px;margin:0}
+.form{display:grid;gap:16px}
+
+/* dialog */
+dialog{border:0;border-radius:16px;padding:0;width:min(560px,calc(100vw - 24px));max-height:calc(100dvh - 24px);background:var(--surface);color:var(--fg);box-shadow:0 24px 60px rgba(8,14,30,.35)}
+dialog::backdrop{background:rgba(8,14,30,.55)}
+.dlg{padding:22px 22px 24px;display:grid;gap:18px}
+.dlg-head{display:flex;justify-content:space-between;gap:12px;align-items:start}
+.dlg-head h2{font-size:21px;color:var(--ink)}
+.x{border:0;background:transparent;color:var(--muted);font-size:24px;line-height:1;cursor:pointer;padding:4px 8px}
+.progress{display:flex;gap:6px}
+.progress span{height:4px;flex:1;border-radius:4px;background:var(--line)}
+.progress span.on{background:var(--gold)}
+
+/* 荷札 */
+.tag{position:relative;background:var(--gold-soft);border:1.5px solid var(--gold);padding:18px 18px 18px 54px;clip-path:polygon(22px 0,100% 0,100% 100%,22px 100%,0 calc(100% - 22px),0 22px);border-radius:0 10px 10px 0}
+.tag::before{content:"";position:absolute;left:18px;top:50%;width:14px;height:14px;margin-top:-7px;border-radius:50%;background:var(--surface);border:1.5px solid var(--gold)}
+.tag small{display:block;font-size:12px;color:var(--muted);letter-spacing:.08em}
+.tag .code{font-family:var(--mono);font-weight:600;font-size:clamp(28px,7vw,38px);letter-spacing:.06em;color:var(--ink);line-height:1.2}
+.tag .for{font-size:14px;margin-top:2px}
+.msgbox{display:grid;gap:8px}
+.msgbox pre{margin:0;white-space:pre-wrap;word-break:break-all;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:12px;font-family:var(--body);font-size:15px}
+.howto{margin:0;padding-left:1.3em;font-size:14px;display:grid;gap:4px}
+.actions{display:grid;gap:10px}
+.done{display:grid;gap:10px;text-align:center;padding-block:8px}
+.done .mark{width:56px;height:56px;border-radius:50%;background:var(--gold-soft);color:var(--gold);display:grid;place-items:center;font-size:28px;margin:0 auto}
+.toast{font-size:13px;color:var(--ok);min-height:1.2em}
+
+footer{padding-block:56px 40px;color:var(--muted);font-size:13px}
+footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:20px}
+
+@media (max-width:860px){
+  .hero-grid,.report{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr 1fr}
+}
+@media (max-width:520px){
+  .steps,.row2{grid-template-columns:1fr}
+  .items{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="demo" id="demo" hidden>プレビュー表示です。ここで送信した内容は保存されません。</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><b>広島三育応援ギフト</b><span>三育リンクアップ × 研成会</span></div>
+    <div class="hero-grid">
+      <div>
+        <div class="eyebrow">生徒たちの「今、ほしいもの」</div>
+        <h1>ひとつの贈り物から、<br>三育のつながりを。</h1>
+        <p>広島三育学院の生徒たちが学校生活で必要としている品を、卒業生・保護者・応援してくださる皆さまからAmazonのほしい物リストを通じて贈っていただけます。</p>
+        <div class="hero-note"><i>SG-○○○○</i><span>贈る前に受付番号をお渡しします。Amazonのギフトメッセージに番号を入れていただくと、届いた荷物があなたからの贈り物だと学院でわかります。</span></div>
+      </div>
+      <div class="photo"><img src="https://hiroshima-saniku-gift.honey-anole-9342.chatgpt.site/hiroshima-saniku-students.webp" alt="広島三育学院の生徒たち" onerror="this.remove()"></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="list">
+    <div class="wrap">
+      <div class="sec-head">
+        <div><div class="eyebrow">GIFT LIST</div><h2>今回募集する品</h2></div>
+        <p>価格は参考価格です。ご購入時にAmazonで表示される価格をご確認ください。</p>
+      </div>
+      <div class="items" id="items"><div class="empty">品物を読み込んでいます…</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><div><div class="eyebrow">HOW IT WORKS</div><h2>贈り物が届くまで</h2></div></div>
+      <ol class="steps">
+        <li><b>品物を選ぶ</b><span>生徒たちが今必要としている品と、その使い道を確認します。</span></li>
+        <li><b>受付番号を受け取る</b><span>お名前とメールアドレスを入力すると、受付番号が発行されます。同じ内容をメールでもお送りします。</span></li>
+        <li class="key"><b>番号を添えてAmazonで注文</b><span>ほしい物リストからカートに入れ、「ギフトの設定」のメッセージ欄に受付番号を貼り付けて注文します。</span></li>
+        <li><b>お礼の動画が届く</b><span>学院で荷物と受付番号を照合し、生徒たちが撮影したお礼の動画をお届けします。</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="thanks">
+    <div class="wrap">
+      <div class="sec-head">
+        <div><div class="eyebrow">THANK YOU</div><h2>届いた贈り物</h2></div>
+        <p class="tally" id="tally" hidden>これまでに <b id="total">0</b> 件の贈り物が届きました</p>
+      </div>
+      <div class="supporters" id="supporters"><div class="empty">学院に届いた贈り物を、贈ってくださった方の了承を得てここに掲載します。</div></div>
+    </div>
+  </section>
+
+  <section id="report">
+    <div class="wrap">
+      <div class="report">
+        <div>
+          <div class="eyebrow">AFTER ORDER</div>
+          <h2>Amazonで注文した方へ</h2>
+          <p>ご注文後にお知らせいただくと、学院で到着を待つ準備ができます。受付番号は申込時のメールに記載しています。</p>
+        </div>
+        <form class="form" id="reportForm" novalidate>
+          <div class="row2">
+            <div class="field"><label for="rCode">受付番号</label><input type="text" id="rCode" placeholder="SG-7K3P" autocomplete="off" required></div>
+            <div class="field"><label for="rEmail">メールアドレス</label><input type="email" id="rEmail" placeholder="example@email.com" required></div>
+          </div>
+          <p class="error" id="rError" hidden></p>
+          <p class="toast" id="rOk" hidden></p>
+          <button class="btn btn-ghost" type="submit" id="rBtn">注文したことを報告する</button>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap"><span>広島三育応援ギフト　三育リンクアップ × 研成会</span><span>お預かりした情報は、贈り物の確認とお礼のご連絡のみに使用します。</span></div></footer>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <div class="dlg">
+    <div class="dlg-head">
+      <div><div class="eyebrow">広島三育応援ギフト</div><h2 id="dlgTitle">品物を贈る</h2></div>
+      <button class="x" type="button" id="close" aria-label="閉じる">×</button>
+    </div>
+    <div class="progress" aria-hidden="true"><span class="on"></span><span id="p2"></span><span id="p3"></span></div>
+
+    <!-- 1. 入力 -->
+    <form class="form" id="giftForm" novalidate>
+      <div class="field"><label for="fName">お名前<span class="req">必須</span></label><input type="text" id="fName" placeholder="例：三育 太郎" autocomplete="name" required></div>
+      <div class="field">
+        <span class="legend">区分<span class="req">必須</span></span>
+        <div class="radios" id="fCat">
+          <label><input type="radio" name="cat" value="卒業生" checked>卒業生</label>
+          <label><input type="radio" name="cat" value="保護者">保護者</label>
+          <label><input type="radio" name="cat" value="教職員・元教職員">教職員・元教職員</label>
+          <label><input type="radio" name="cat" value="地域・企業の方">地域・企業の方</label>
+          <label><input type="radio" name="cat" value="その他">その他</label>
+        </div>
+      </div>
+      <div class="field"><label for="fDetail" id="fDetailLabel">卒業期<span class="opt">任意</span></label><input type="text" id="fDetail" placeholder="例：35期"></div>
+      <div class="field"><label for="fEmail">メールアドレス<span class="req">必須</span></label><input type="email" id="fEmail" placeholder="example@email.com" autocomplete="email" required><small style="color:var(--muted);font-size:12px">受付番号とお礼動画のご案内をお送りします。</small></div>
+      <div class="field"><label for="fMsg">生徒たちへのメッセージ<span class="opt">任意</span></label><textarea id="fMsg" maxlength="300" placeholder="応援のひとことがあればお寄せください"></textarea></div>
+      <div class="field">
+        <span class="legend">「届いた贈り物」への掲載</span>
+        <div class="radios">
+          <label><input type="radio" name="pub" value="お名前を掲載" checked>お名前とメッセージを掲載</label>
+          <label><input type="radio" name="pub" value="区分のみ掲載">区分のみ（例：35期 卒業生）</label>
+          <label><input type="radio" name="pub" value="掲載しない">掲載しない</label>
+        </div>
+      </div>
+      <label class="check warn"><input type="checkbox" id="fAddr"><span><b>Amazonでお届け先を必ず確認します。</b>レジ画面でお届け先が広島三育学院になっていることを確認し、ご自宅の住所が表示された場合は注文を確定しません。</span></label>
+      <label class="check"><input type="checkbox" id="fConsent"><span>入力した情報を、贈り物の確認とお礼のご連絡のために使用することに同意します。</span></label>
+      <p class="error" id="fError" hidden></p>
+      <button class="btn btn-primary" type="submit" id="fBtn">受付番号を発行する</button>
+    </form>
+
+    <!-- 2. 受付番号 -->
+    <div id="stepCode" class="actions" hidden>
+      <div class="tag"><small>受付番号</small><div class="code" id="code">SG-0000</div><div class="for" id="codeFor"></div></div>
+      <div class="msgbox">
+        <span class="legend">Amazonの「ギフトメッセージ」に貼り付ける文</span>
+        <pre id="giftMsg"></pre>
+        <button class="btn btn-ghost" type="button" id="copy">この文をコピー</button>
+        <span class="toast" id="copied" aria-live="polite"></span>
+      </div>
+      <ol class="howto">
+        <li>ほしい物リストで品物を<b>カートに入れる</b></li>
+        <li>レジ画面で<b>お届け先が広島三育学院</b>になっていることを確認</li>
+        <li><b>「ギフトの設定」</b>を開き、メッセージ欄に上の文を貼り付けて注文</li>
+      </ol>
+      <a class="btn btn-primary" id="wishlist" href="#" target="_blank" rel="noopener">Amazonのほしい物リストを開く</a>
+      <button class="btn btn-ghost" type="button" id="ordered">注文が完了しました</button>
+      <p class="error" id="oError" hidden></p>
+      <small style="color:var(--muted);font-size:12px">受付番号は入力したメールアドレスにもお送りしています。後から報告する場合は、ページ下の「Amazonで注文した方へ」からどうぞ。</small>
+    </div>
+
+    <!-- 3. 完了 -->
+    <div id="stepDone" class="done" hidden>
+      <div class="mark">✓</div>
+      <h3 style="font-size:20px;color:var(--ink)">ありがとうございます</h3>
+      <p style="margin:0;color:var(--muted)">ご注文の報告を受け付けました。品物が学院に届いたら、受付番号で照合し、生徒たちからお礼の動画をお届けします。</p>
+      <button class="btn btn-ghost" type="button" id="closeDone">閉じる</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  var IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
+  var API = 'https://script.google.com/macros/s/AKfycbywxL_tALu_qXVDrsMjwu3ta8cvN226E-lyYKuFsPhYrH2DDQy7RWcQkA_Aumjk6Z8e/exec';
+  var USE_API = !IS_GAS && /^https?:/.test(location.protocol) && !/^(localhost|127\.)/.test(location.hostname);
+  var ACTIONS = { getPageData:'data', submitIntent:'submit', reportPurchase:'report' };
+  function apiCall(fn, args){
+    var body = { action: ACTIONS[fn] };
+    if (fn==='submitIntent') body.form = args[0];
+    if (fn==='reportPurchase') { body.code = args[0]; body.email = args[1]; }
+    return fetch(API, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body), credentials:'omit', redirect:'follow' })
+      .then(function(r){ return r.json(); })
+      .then(function(j){ if(!j.ok) throw new Error(j.error||'エラーが発生しました。'); return j.result; });
+  }
+
+  /* プレビュー用（Apps Script 以外で開いたとき） */
+  var DEMO = {
+    getPageData: function(){ return {
+      items:[{id:'trimmer',name:'マキタ 充電式生垣バリカン MUH367DZ',category:'学校生活を支える品',use:'生徒たちが過ごす校内の植栽を、きれいに整えるために。',spec:'18V・刃物長360mm（本体のみ）',price:14716,priceDate:'10/30',image:'https://www.komeri.com/images/goods/021/559/87/2155987.jpg',count:2}],
+      supporters:[{name:'（表示例）三育 花子 さん',group:'35期 卒業生',item:'マキタ 充電式生垣バリカン MUH367DZ',message:'後輩のみんな、校庭をよろしく！'},{name:'',group:'保護者',item:'マキタ 充電式生垣バリカン MUH367DZ',message:''}],
+      total:2 }; },
+    submitIntent: function(f){ var code='SG-DEMO'; return {code:code,wishlistUrl:'https://www.amazon.co.jp/',itemName:'',giftMessage:'広島三育応援ギフト 受付番号'+code+'／'+f.name+(f.group?'（'+f.group+'）':'')+'より'}; },
+    reportPurchase: function(){ return {itemName:'',status:'購入報告'}; }
+  };
+  function call(fn){
+    var args = Array.prototype.slice.call(arguments,1);
+    if (USE_API) return apiCall(fn, args);
+    return new Promise(function(res,rej){
+      if(!IS_GAS){ setTimeout(function(){ try{ res(DEMO[fn].apply(null,args)); }catch(e){ rej(e); } },350); return; }
+      var r = google.script.run.withSuccessHandler(res).withFailureHandler(rej);
+      r[fn].apply(r,args);
+    });
+  }
+  function $(id){ return document.getElementById(id); }
+  function el(tag, cls, text){ var e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; }
+  function errText(e){ var m=(e&&e.message)||String(e); return m.replace(/^Error:\s*/,'').replace(/^Exception:\s*/,''); }
+  function store(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){ return null; } }
+
+  if(!IS_GAS && !USE_API) $('demo').hidden=false;
+
+  var current=null, issued=null;
+
+  /* 品物と応援者 */
+  call('getPageData').then(function(d){
+    var box=$('items'); box.innerHTML='';
+    if(!d.items.length){ box.appendChild(el('div','empty','現在募集中の品物はありません。次回の募集をお待ちください。')); }
+    d.items.forEach(function(it){
+      var c=el('article','item');
+      var im=el('div','item-img');
+      if(it.image){ var img=new Image(); img.src=it.image; img.alt=it.name; img.loading='lazy'; img.onerror=function(){ img.remove(); }; im.appendChild(img); }
+      c.appendChild(im);
+      var b=el('div','item-body');
+      var chips=el('div','chips'); chips.appendChild(el('span','chip live','募集中')); if(it.category) chips.appendChild(el('span','chip',it.category)); b.appendChild(chips);
+      b.appendChild(el('h3',null,it.name));
+      if(it.use) b.appendChild(el('p','use',it.use));
+      if(it.spec) b.appendChild(el('p','spec',it.spec));
+      if(it.price){ var p=el('div','price'); p.appendChild(el('small',null,'Amazon参考価格')); p.appendChild(el('strong',null,'¥'+Number(it.price).toLocaleString('ja-JP'))); p.appendChild(el('small',null,'税込'+(it.priceDate?'・'+it.priceDate+'時点':''))); b.appendChild(p); }
+      if(it.count) b.appendChild(el('div','count','これまでに '+it.count+' 名の方が贈ってくださいました'));
+      var btn=el('button','btn btn-primary','この品物を贈る'); btn.type='button';
+      btn.addEventListener('click',function(){ openGift(it); });
+      b.appendChild(btn); c.appendChild(b); box.appendChild(c);
+    });
+
+    var sb=$('supporters');
+    if(d.supporters && d.supporters.length){
+      sb.innerHTML='';
+      d.supporters.forEach(function(s){
+        var x=el('div','sup');
+        x.appendChild(el('b',null,s.name||'応援してくださった方'));
+        if(s.group) x.appendChild(el('span','g',s.group));
+        x.appendChild(el('span','i','贈り物：'+s.item));
+        if(s.message) x.appendChild(el('q',null,s.message));
+        sb.appendChild(x);
+      });
+    }
+    if(d.total){ $('total').textContent=d.total; $('tally').hidden=false; }
+  }).catch(function(e){
+    $('items').innerHTML=''; $('items').appendChild(el('div','empty','品物を読み込めませんでした。時間をおいて再度お開きください。'));
+  });
+
+  /* 区分ごとに補足欄を切り替え */
+  var detailCopy={'卒業生':['卒業期','例：35期'],'保護者':['お子さまの学年','例：高校2年'],'教職員・元教職員':['在職期間など','例：2005〜2015年'],'地域・企業の方':['ご所属','例：〇〇株式会社'],'その他':['ご関係','例：ソアンの活動を見て']};
+  $('fCat').addEventListener('change',function(){
+    var v=document.querySelector('input[name=cat]:checked').value, d=detailCopy[v];
+    $('fDetailLabel').innerHTML=''; $('fDetailLabel').appendChild(document.createTextNode(d[0])); $('fDetailLabel').appendChild(el('span','opt','任意'));
+    $('fDetail').placeholder=d[1];
+  });
+
+  var dlg=$('dlg');
+  function show(step){
+    $('giftForm').hidden = step!==1; $('stepCode').hidden = step!==2; $('stepDone').hidden = step!==3;
+    $('p2').className = step>=2?'on':''; $('p3').className = step>=3?'on':'';
+  }
+  function openGift(it){
+    current=it; issued=null;
+    $('dlgTitle').textContent='「'+it.name.replace(/^.*?\s/,'')+'」を贈る';
+    $('fError').hidden=true; $('fBtn').disabled=false; $('fBtn').textContent='受付番号を発行する';
+    var saved=store('sg_profile'); if(saved){ try{ var s=JSON.parse(saved); if(!$('fName').value) $('fName').value=s.name||''; if(!$('fEmail').value) $('fEmail').value=s.email||''; if(!$('fDetail').value) $('fDetail').value=s.detail||''; }catch(e){} }
+    show(1);
+    if(typeof dlg.showModal==='function') dlg.showModal(); else dlg.setAttribute('open','');
+  }
+  function closeDlg(){ if(dlg.close) dlg.close(); else dlg.removeAttribute('open'); }
+  $('close').addEventListener('click',closeDlg);
+  $('closeDone').addEventListener('click',closeDlg);
+
+  $('giftForm').addEventListener('submit',function(ev){
+    ev.preventDefault();
+    var err=$('fError'); err.hidden=true;
+    var f={ itemId:current.id, name:$('fName').value.trim(), email:$('fEmail').value.trim(),
+      category:document.querySelector('input[name=cat]:checked').value, detail:$('fDetail').value.trim(),
+      message:$('fMsg').value.trim(), publish:document.querySelector('input[name=pub]:checked').value,
+      consent:$('fConsent').checked };
+    var miss=[];
+    if(!f.name) miss.push('お名前'); if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) miss.push('メールアドレス');
+    if(miss.length){ err.textContent=miss.join('と')+'を入力してください。'; err.hidden=false; return; }
+    if(!$('fAddr').checked || !f.consent){ err.textContent='2つの確認事項にチェックを入れてください。'; err.hidden=false; return; }
+    f.group = f.category==='卒業生' ? (f.detail? f.detail+' 卒業生':'卒業生') : (f.category==='保護者'?'保護者':f.category);
+    $('fBtn').disabled=true; $('fBtn').textContent='発行しています…';
+    call('submitIntent',f).then(function(r){
+      issued={code:r.code,email:f.email};
+      store('sg_profile',JSON.stringify({name:f.name,email:f.email,detail:f.detail}));
+      store('sg_last',JSON.stringify(issued));
+      $('code').textContent=r.code;
+      $('codeFor').textContent=f.name+' さま／'+current.name;
+      $('giftMsg').textContent=r.giftMessage;
+      $('wishlist').href=r.wishlistUrl||'#';
+      $('copied').textContent=''; $('oError').hidden=true; $('ordered').disabled=false;
+      show(2);
+    }).catch(function(e){
+      err.textContent=errText(e); err.hidden=false; $('fBtn').disabled=false; $('fBtn').textContent='受付番号を発行する';
+    });
+  });
+
+  $('copy').addEventListener('click',function(){
+    var t=$('giftMsg').textContent;
+    function fallback(){ var r=document.createRange(); r.selectNodeContents($('giftMsg')); var s=getSelection(); s.removeAllRanges(); s.addRange(r); $('copied').textContent='文を選択しました。コピーしてお使いください。'; }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(function(){ $('copied').textContent='コピーしました。Amazonのギフトメッセージ欄に貼り付けてください。'; }).catch(fallback);
+    } else fallback();
+  });
+
+  $('ordered').addEventListener('click',function(){
+    if(!issued) return;
+    $('ordered').disabled=true; $('oError').hidden=true;
+    call('reportPurchase',issued.code,issued.email).then(function(){ show(3); loadSoon(); })
+      .catch(function(e){ $('oError').textContent=errText(e); $('oError').hidden=false; $('ordered').disabled=false; });
+  });
+  function loadSoon(){}
+
+  /* 後から報告 */
+  try{ var last=JSON.parse(store('sg_last')||'null'); if(last){ $('rCode').value=last.code; $('rEmail').value=last.email; } }catch(e){}
+  $('reportForm').addEventListener('submit',function(ev){
+    ev.preventDefault();
+    $('rError').hidden=true; $('rOk').hidden=true;
+    var code=$('rCode').value.trim(), email=$('rEmail').value.trim();
+    if(!code||!email){ $('rError').textContent='受付番号とメールアドレスを入力してください。'; $('rError').hidden=false; return; }
+    $('rBtn').disabled=true;
+    call('reportPurchase',code,email).then(function(r){
+      $('rOk').textContent='報告を受け付けました。'+(r.itemName?'（'+r.itemName+'）':'')+'学院に届いたら、お礼の動画をお届けします。'; $('rOk').hidden=false;
+    }).catch(function(e){ $('rError').textContent=errText(e); $('rError').hidden=false; })
+      .then(function(){ $('rBtn').disabled=false; });
+  });
+})();
+</script>
+</body>
+</html>
